@@ -5,6 +5,9 @@ import pymysql
 from typing import List
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
+import os
+
+
 
 # FastAPI 앱 생성
 app = FastAPI()
@@ -19,7 +22,9 @@ app.add_middleware(
 )
 
 # ✅ "static" 폴더를 정적 파일 디렉토리로 설정
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# app.mount("/static", StaticFiles(directory="static"), name="static")
+static_path = os.path.join(os.path.dirname(__file__), "static")
+app.mount("/static", StaticFiles(directory=static_path), name="static")
 
 # ✅ "index.html"을 기본 페이지로 제공
 @app.get("/", response_class=HTMLResponse)
