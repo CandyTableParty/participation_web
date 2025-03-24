@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>참여율 관리</title>
+    <style>
+        #totalParticipation {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .overLimit {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>참여율 관리 시스템</h1>
+
+    <div style="display: flex;">
+        <div style="width: 50%; padding: 10px; border-right: 1px solid #000;">
+            <h2>인원 관리</h2>
+            <label for="departmentSelect">부서 선택:</label>
+            <select id="departmentSelect" onchange="loadStaff()">
+                <option value="">부서를 선택하세요</option>
+            </select>
+
+            <h3>직원 목록</h3>
+            <select id="staffSelect">
+                <option value="">직원을 선택하세요</option>
+            </select>
+
+            <h3>사업 선택</h3>
+            <p id="totalParticipation">총 참여율: 0%</p>
+            <div id="projectInputs"></div>
+            <button onclick="addProjectInput()">사업 추가</button>
+            <button onclick="saveAllParticipation()">저장</button>
+        </div>
+
+        <div style="width: 50%; padding: 10px;">
+            <h2>사업 관리</h2>
+            <label for="projectDepartmentSelect">부서 선택:</label>
+            <select id="projectDepartmentSelect" onchange="loadProjects()">
+                <option value="">부서를 선택하세요</option>
+            </select>
+
+            <h3>사업 목록</h3>
+            <ul id="projectList"></ul>
+        </div>
+    </div>
+
+    <!-- ✅ JS 코드가 실행되기 전에 정의되지 않는 문제 해결 -->
+    <script>
+        let projectCount = 0;
+
+        function loadDepartments() {
+        fetch("http://127.0.0.1:8000/departments")
+            .then(response => response.json())
+            .then(data => {
+                console.log("DEBUG: 받아온 부서 목록 =>", data); // 🚀 디버깅용 콘솔 로그 추가
+
+                if (!Array.isArray(data.departments)) { // 🛠 data가 배열인지 확인
+                    console.error("부서 목록 데이터가 올바르지 않습니다:", data);
+                    return;
+                }
+
+                const departmentSelect = document.getElementById("departmentSelect");
+                const projectDepartmentSelect = document.getElementById("projectDepartmentSelect");
+
+                departmentSelect.innerHTML = `<option value="">부서를 선택하세요</option>`;
+                projectDepartmentSelect.innerHTML = `<option value="">부서를 선택하세요</option>`;
+
+                data.departments.forEach(dept => { // ✅ 수정된 API 구조 반영
+                    let option1 = document.createElement("option");
+                    option1.value = dept;
+                    option1.textContent = dept;
+                    departmentSelect.appendChild(option1);
+
+                    let option2 = document.createElement("option");
+                    option2.value = dept;
+                    option2.textContent = dept;
+                    projectDepartmentSelect.appendChild(option2);
+                });
+            })
+            .catch(error => console.error("부서 목록 불러오기 실패:", error));
+    }
+    function loadStaff() {
+        const department = document.getElementById("departmentSelect").value;
+        if (!department) return;
+
+        fetch(`http://127.0.0.1:8000/staff?department=${department}`)
+            .then(response => response.json())
+            .then(data => {
+                console.log("DEBUG: 받아온 직원 목록 =>", data);  // 🚀 디버깅용 콘솔 로그 추가
+                const staffSelect = document.getElementById("staffSelect");
+                staffSelect.innerHTML = `<option value="">직원을 선택하세요</option>`;
+
+                data.forEach(staff => {
+                    let option = document.createElement("option");
+                    option.value = staff.staffId;
+                    option.textContent = `${staff.userName} (${staff.staffId})`;
+                    staffSelect.appendChild(option);
+                });
+            })
+            .catch(error => console.error("직원 데이터 불러오기 실패:", error));
+    }
+
+        function addProjectInput() {
+            if (projectCount >= 5) {
+                alert("최대 5개의 사업만 추가할 수 있습니다!");
+                return;
+            }
+
+            projectCount++;
+            const projectInputs = document.getElementById("projectInputs");
+            const div = document.createElement("div");
+            div.innerHTML = `
+                <span>순번 ${projectCount}:</span>
+                <input type="text" class="selectedProject" readonly placeholder="오른쪽에서 사업 선택">
+                <input type="number" class="participationRate" placeholder="참여율 입력 (%)" oninput="updateTotalParticipation()">
+                <button onclick="removeProjectInput(this)">삭제</button>
+            `;
+            projectInputs.appendChild(div);
+        }
+
+        function removeProjectInput(button) {
+            button.parentElement.remove();
+            projectCount--;
+            updateTotalParticipation();
+        }
+
+        function loadProjects() {
+            const department = document.getElementById("projectDepartmentSelect").value;
+            if (!department) return;
+
+            fetch(`http://127.0.0.1:8000/projects?department=${department}`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log("DEBUG: 받아온 사업 목록 ->", data);
+                    const projectList = document.getElementById("projectList");
+                    projectList.innerHTML = "";
+                    data.forEach(project => {
+                        let li = document.createElement("li");
+                        li.textContent = project.projectName;
+                        li.onclick = () => selectProject(project.projectId, project.projectName);
+                        projectList.appendChild(li);
+                    });
+                })
+                .catch(error => console.error("사업 데이터 불러오기 실패:", error));
+        }
+
+        function selectProject(projectId, projectName) {
+            const projectInputs = document.querySelectorAll(".selectedProject");
+            for (let input of projectInputs) {
+                if (!input.value) {
+                    input.value = projectName;
+                    input.dataset.projectId = projectId;
+                    return;
+                }
+            }
+            alert("사업 입력란을 먼저 추가하세요!");
+        }
+
+        function updateTotalParticipation() {
+            let total = 0;
+            document.querySelectorAll(".participationRate").forEach(input => {
+                total += parseFloat(input.value) || 0;
+            });
+
+            const totalDisplay = document.getElementById("totalParticipation");
+            totalDisplay.textContent = `총 참여율: ${total}%`;
+
+            if (total > 100) {
+                totalDisplay.classList.add("overLimit");
+            } else {
+                totalDisplay.classList.remove("overLimit");
+            }
+        }
+
+        function saveAllParticipation() {
+            const staffId = document.getElementById("staffSelect").value;
+            if (!staffId) {
+                alert("직원을 선택하세요!");
+                return;
+            }
+
+            let participationData = [];
+            document.querySelectorAll("#projectInputs div").forEach(div => {
+                const projectName = div.querySelector(".selectedProject").value;
+                const participationRate = parseFloat(div.querySelector(".participationRate").value) || 0;
+
+                if (!projectName) {
+                    alert("사업을 선택하세요!");
+                    return;
+                }
+
+                participationData.push({
+                    staffId: staffId,
+                    projectName: projectName,
+                    participationRate: participationRate
+                });
+            });
+
+            if (participationData.length === 0) {
+                alert("저장할 데이터가 없습니다!");
+                return;
+            }
+
+            fetch("http://127.0.0.1:8000/participation", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(participationData)
+            })
+            .then(response => response.json())
+            .then(data => alert(data.message))
+            .catch(error => console.error("참여율 저장 실패:", error));
+        }
+
+        // ✅ 페이지 로딩 시 부서 목록 자동 로드 (스크립트가 실행된 후 호출됨)
+        window.onload = function() {
+            loadDepartments();
+        };
+    </script>
+</body>
+</html>

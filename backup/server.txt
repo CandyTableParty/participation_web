@@ -1,0 +1,117 @@
+from fastapi import FastAPI, Query, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+import pymysql
+from typing import List
+
+app = FastAPI()
+
+# CORS 설정 추가
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+def get_db_connection():
+    return pymysql.connect(
+        host="localhost",
+        user="root",
+        password="jun1206",
+        database="jun",
+        cursorclass=pymysql.cursors.DictCursor
+    )
+
+# ✅ 부서 목록 조회 API (인원 관리 & 사업 관리 분리)
+@app.get("/departments")
+def get_departments():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT DISTINCT staffDepartment FROM staff")
+        departments = cursor.fetchall()
+        
+        # 🛠 departments가 [{staffDepartment: "디지털혁신단"}] 이런 형태로 반환되는 경우가 있어서 수정
+        department_list = [dept["staffDepartment"] for dept in departments if dept["staffDepartment"]]
+        
+        return {"departments": department_list}  # ✅ JSON 객체 대신 배열 반환
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"오류 발생: {str(e)}")
+
+    finally:
+        cursor.close()
+        conn.close()
+        
+# ✅ 직원 목록 조회 API
+@app.get("/staff")
+def get_staff(department: str = Query(None)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT staffId, userName FROM staff WHERE staffDepartment = %s", (department,))
+        return cursor.fetchall()
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"오류 발생: {str(e)}")
+
+    finally:
+        cursor.close()
+        conn.close()
+
+# ✅ 사업 목록 조회 API
+@app.get("/projects")
+def get_projects(department: str = Query(None)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT projectId, projectName FROM projects WHERE department = %s", (department,))
+        return cursor.fetchall()
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"오류 발생: {str(e)}")
+
+    finally:
+        cursor.close()
+        conn.close()
+
+# ✅ 참여율 입력을 위한 데이터 모델
+class ParticipationInput(BaseModel):
+    staffId: str
+    projectId: str
+    participationRate: float
+
+# ✅ 참여율 저장 API
+@app.post("/participation")
+def save_participation(data: List[ParticipationInput]):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        for entry in data:
+            cursor.execute("""
+                INSERT INTO participation (staffId, projectId, participationRate1) 
+                VALUES (%s, %s, %s) 
+                ON DUPLICATE KEY UPDATE participationRate1 = %s
+            """, (entry.staffId, entry.projectId, entry.participationRate, entry.participationRate))
+        
+        conn.commit()
+        return {"message": "참여율이 성공적으로 저장되었습니다!"}
+
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"오류 발생: {str(e)}")
+
+    finally:
+        cursor.close()
+        conn.close()
+
+# ✅ FastAPI 실행 코드 추가 (중요)
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=8000)
