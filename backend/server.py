@@ -29,7 +29,8 @@ app.mount("/static", StaticFiles(directory=static_path), name="static")
 # ✅ "index.html"을 기본 페이지로 제공
 @app.get("/", response_class=HTMLResponse)
 def serve_index():
-    with open("static/index.html", "r", encoding="utf-8") as file:
+    path = os.path.join(os.path.dirname(__file__), "static", "index.html")
+    with open(path, "r", encoding="utf-8") as file:
         return HTMLResponse(content=file.read())
 
 
