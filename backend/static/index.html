@@ -33,7 +33,7 @@
         }
         .sub-container {
             display: flex;  
-            justify-content: space-between; /* 직원목록과 참여정보를 좌우 배치 */
+            justify-content: space-between;
         }
         .sub-panel {
             width: 48%;
@@ -106,6 +106,7 @@
     </div>
 
     <script>
+        const BASE_URL = window.location.origin;
         let projectCount = 0;
         let selectedStaffId = null;
 
@@ -114,7 +115,7 @@
         };
 
         function loadDepartments() {
-            fetch("http://127.0.0.1:8000/departments/staff")
+            fetch(`${BASE_URL}/departments/staff`)
                 .then(res => res.json())
                 .then(data => {
                     const select = document.getElementById("departmentSelect");
@@ -127,7 +128,7 @@
                     });
                 });
 
-            fetch("http://127.0.0.1:8000/departments/projects")
+            fetch(`${BASE_URL}/departments/projects`)
                 .then(res => res.json())
                 .then(data => {
                     const select = document.getElementById("projectDepartmentSelect");
@@ -141,155 +142,136 @@
                 });
         }
 
-    function updateStaffParticipationDisplay(staffId) {
-    const staffListItems = document.querySelectorAll("#staffList li");
+        function updateStaffParticipationDisplay(staffId) {
+            const staffListItems = document.querySelectorAll("#staffList li");
 
-    staffListItems.forEach(li => {
-        if (li.dataset.staffId === staffId) {
-            // ✅ **기존 총 참여율 정보 완전 삭제 (중복 방지)**
-            let existingParticipation = li.querySelector(".staffParticipation");
-            if (existingParticipation) {
-                existingParticipation.remove();  // 🔥 기존 값 완전히 삭제
+            staffListItems.forEach(li => {
+                if (li.dataset.staffId === staffId) {
+                    let existingParticipation = li.querySelector(".staffParticipation");
+                    if (existingParticipation) existingParticipation.remove();
+
+                    fetch(`${BASE_URL}/participation?staffId=${staffId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            let totalParticipation = data.reduce((sum, entry) => sum + parseFloat(entry.participationRate), 0);
+                            let colorClass = totalParticipation > 129 ? "red" : totalParticipation > 100 ? "orange" : "black";
+
+                            let span = document.createElement("span");
+                            span.classList.add("staffParticipation");
+                            span.style.color = colorClass;
+                            span.style.fontWeight = "bold";
+                            span.style.marginLeft = "10px";
+                            span.textContent = `총 ${totalParticipation}%`;
+
+                            li.appendChild(span);
+                        })
+                        .catch(error => console.error("총 참여율 업데이트 실패:", error));
+                }
+            });
+        }
+
+        function saveAllParticipation() {
+            if (!selectedStaffId) {
+                alert("직원을 선택하세요!");
+                return;
             }
 
-            // ✅ **새로운 총 참여율 계산 후 추가**
-            fetch(`http://127.0.0.1:8000/participation?staffId=${staffId}`)
-                .then(response => response.json())
-                .then(data => {
-                    let totalParticipation = data.reduce((sum, entry) => sum + parseFloat(entry.participationRate), 0);
-                    let colorClass = totalParticipation > 129 ? "red" : totalParticipation > 100 ? "orange" : "black";
+            let participationData = [];
+            document.querySelectorAll("#projectInputs div").forEach(div => {
+                const projectId = div.querySelector(".selectedProject").dataset.projectId;
+                const participationRate = parseFloat(div.querySelector(".participationRate").value) || 0;
+                const leadTaskFlag = div.querySelector(".leadTaskFlag").checked;
 
-                    // ✅ **새로운 총 참여율 요소 생성**
-                    let span = document.createElement("span");
-                    span.classList.add("staffParticipation");
-                    span.style.color = colorClass;
-                    span.style.fontWeight = "bold";
-                    span.style.marginLeft = "10px";
-                    span.textContent = `총 ${totalParticipation}%`;
-
-                    // **✅ 완전히 초기화 후 추가되므로 중복 문제 해결!**
-                    li.appendChild(span);
-                })
-                .catch(error => console.error("총 참여율 업데이트 실패:", error));
-        }
-    });
-}
-function saveAllParticipation() {
-    if (!selectedStaffId) {
-        alert("직원을 선택하세요!");
-        return;
-    }
-
-    let participationData = [];
-    document.querySelectorAll("#projectInputs div").forEach(div => {
-        const projectId = div.querySelector(".selectedProject").dataset.projectId;
-        const participationRate = parseFloat(div.querySelector(".participationRate").value) || 0;
-        const leadTaskFlag = div.querySelector(".leadTaskFlag").checked;
-
-        if (!projectId) {
-            alert("사업을 선택하세요!");
-            return;
-        }
-
-        participationData.push({
-            staffId: selectedStaffId,
-            projectId: projectId,
-            participationRate: participationRate,
-            leadTaskFlag: leadTaskFlag
-        });
-    });
-
-    if (participationData.length === 0) {
-        alert("저장할 데이터가 없습니다!");
-        return;
-    }
-
-    // ✅ 기존 총 참여율 UI 초기화 (중복 방지)
-    document.querySelectorAll(".staffParticipation").forEach(span => span.remove());
-
-    fetch("http://127.0.0.1:8000/participation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(participationData)
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log("🚀 참여율 저장 완료:", data);
-
-        // ✅ 선택된 직원 유지하면서 전체 직원 목록 갱신
-        let currentSelected = selectedStaffId;
-        loadStaff();
-        setTimeout(() => {
-            let staffItem = document.querySelector(`[data-staff-id="${currentSelected}"]`);
-            if (staffItem) staffItem.classList.add("selected"); // ✅ 다시 선택 유지
-        }, 300);
-
-        // ✅ 총 참여율 업데이트
-        updateStaffParticipationDisplay(selectedStaffId);
-
-        // ✅ UI 업데이트 후 메시지 표시 (100ms 딜레이)
-        setTimeout(() => {
-            alert(data.message);
-        }, 200);
-    })
-    .catch(error => {
-        console.error("참여율 저장 실패:", error);
-        alert("저장 중 오류가 발생했습니다. 다시 시도해주세요.");
-    });
-}
-function loadStaff() {
-    const department = document.getElementById("departmentSelect").value;
-    if (!department) return;
-
-    fetch(`http://127.0.0.1:8000/staff?department=${department}`)
-        .then(response => response.json())
-        .then(data => {
-            const staffList = document.getElementById("staffList");
-            staffList.innerHTML = "";
-            data.forEach(staff => {
-                let li = document.createElement("li");
-                const total = staff.totalParticipation ?? 0;
-
-                // 색상 결정
-                let color = "black";
-                if (total > 129) {
-                    color = "red";
-                } else if (total > 100) {
-                    color = "orange";
+                if (!projectId) {
+                    alert("사업을 선택하세요!");
+                    return;
                 }
 
-                li.innerHTML = `
-                    <span>${staff.userName} (${staff.staffId})</span>
-                    <span style="float: right; color: ${color};">총 ${total}%</span>
-                `;
-                li.dataset.staffId = staff.staffId;
-                li.onclick = function () {
-                    selectedStaffId = staff.staffId;
-                    document.querySelectorAll("#staffList li").forEach(item => item.classList.remove("selected"));
-                    this.classList.add("selected");
-                    loadExistingParticipation(staff.staffId);
-                };
-                staffList.appendChild(li);
+                participationData.push({
+                    staffId: selectedStaffId,
+                    projectId: projectId,
+                    participationRate: participationRate,
+                    leadTaskFlag: leadTaskFlag
+                });
             });
-        })
-        .catch(error => console.error("직원 데이터 불러오기 실패:", error));
-}
 
-function loadExistingParticipation(staffId) {
-    fetch(`http://127.0.0.1:8000/participation?staffId=${staffId}`)
-        .then(response => response.json())
-        .then(data => {
-            projectCount = 0;
-            document.getElementById("projectInputs").innerHTML = "";
-            data.forEach(entry => addProjectInput(entry));
-        })
-        .catch(error => console.error("기존 참여율 불러오기 실패:", error));
-}
+            if (participationData.length === 0) {
+                alert("저장할 데이터가 없습니다!");
+                return;
+            }
+
+            document.querySelectorAll(".staffParticipation").forEach(span => span.remove());
+
+            fetch(`${BASE_URL}/participation`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(participationData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log("🚀 참여율 저장 완료:", data);
+                let currentSelected = selectedStaffId;
+                loadStaff();
+                setTimeout(() => {
+                    let staffItem = document.querySelector(`[data-staff-id="${currentSelected}"]`);
+                    if (staffItem) staffItem.classList.add("selected");
+                }, 300);
+                updateStaffParticipationDisplay(selectedStaffId);
+                setTimeout(() => {
+                    alert(data.message);
+                }, 200);
+            })
+            .catch(error => {
+                console.error("참여율 저장 실패:", error);
+                alert("저장 중 오류가 발생했습니다. 다시 시도해주세요.");
+            });
+        }
+
+        function loadStaff() {
+            const department = document.getElementById("departmentSelect").value;
+            if (!department) return;
+
+            fetch(`${BASE_URL}/staff?department=${department}`)
+                .then(response => response.json())
+                .then(data => {
+                    const staffList = document.getElementById("staffList");
+                    staffList.innerHTML = "";
+                    data.forEach(staff => {
+                        let li = document.createElement("li");
+                        const total = staff.totalParticipation ?? 0;
+                        let color = total > 129 ? "red" : total > 100 ? "orange" : "black";
+
+                        li.innerHTML = `<span>${staff.userName} (${staff.staffId})</span>
+                                        <span style="float: right; color: ${color};">총 ${total}%</span>`;
+                        li.dataset.staffId = staff.staffId;
+                        li.onclick = function () {
+                            selectedStaffId = staff.staffId;
+                            document.querySelectorAll("#staffList li").forEach(item => item.classList.remove("selected"));
+                            this.classList.add("selected");
+                            loadExistingParticipation(staff.staffId);
+                        };
+                        staffList.appendChild(li);
+                    });
+                })
+                .catch(error => console.error("직원 데이터 불러오기 실패:", error));
+        }
+
+        function loadExistingParticipation(staffId) {
+            fetch(`${BASE_URL}/participation?staffId=${staffId}`)
+                .then(response => response.json())
+                .then(data => {
+                    projectCount = 0;
+                    document.getElementById("projectInputs").innerHTML = "";
+                    data.forEach(entry => addProjectInput(entry));
+                })
+                .catch(error => console.error("기존 참여율 불러오기 실패:", error));
+        }
+
         function loadProjects() {
             const department = document.getElementById("projectDepartmentSelect").value;
             if (!department) return;
 
-            fetch(`http://127.0.0.1:8000/projects?department=${department}`)
+            fetch(`${BASE_URL}/projects?department=${department}`)
                 .then(response => response.json())
                 .then(data => {
                     const projectList = document.getElementById("projectList");
@@ -303,66 +285,63 @@ function loadExistingParticipation(staffId) {
                 })
                 .catch(error => console.error("사업 데이터 불러오기 실패:", error));
         }
+
         function selectProject(id, name) {
-    const allInputs = document.querySelectorAll(".selectedProject");
+            const allInputs = document.querySelectorAll(".selectedProject");
+            for (let input of allInputs) {
+                if (input.dataset.projectId === id) {
+                    alert("이미 선택된 사업입니다.");
+                    return;
+                }
+            }
 
-    // 중복 방지
-    for (let input of allInputs) {
-        if (input.dataset.projectId === id) {
-            alert("이미 선택된 사업입니다.");
-            return;
+            for (let input of allInputs) {
+                if (!input.value) {
+                    input.value = name;
+                    input.dataset.projectId = id;
+                    input.dataset.projectName = name;
+                    return;
+                }
+            }
+
+            alert("사업 추가 버튼을 먼저 눌러주세요.");
         }
-    }
 
-    // 빈 입력란에 넣기
-    for (let input of allInputs) {
-        if (!input.value) {
-            input.value = name;
-            input.dataset.projectId = id;
-            input.dataset.projectName = name;
-            isDataDirty = true;
-            return;
+        function addProjectInput(entry = null) {
+            if (projectCount >= 5) {
+                alert("최대 5개의 사업만 추가할 수 있습니다!");
+                return;
+            }
+
+            projectCount++;
+            const projectInputs = document.getElementById("projectInputs");
+            const div = document.createElement("div");
+
+            div.innerHTML = `
+                <span>순번 ${projectCount}:</span>
+                <input type="text" class="selectedProject" readonly placeholder="오른쪽에서 사업 선택">
+                <input type="number" class="participationRate" placeholder="참여율 입력 (%)" oninput="updateTotalParticipation()">
+                <label><input type="checkbox" class="leadTaskFlag"> 과제 책임</label>
+                <button onclick="removeProjectInput(this)">삭제</button>
+            `;
+
+            projectInputs.appendChild(div);
+
+            if (entry) {
+                const projectInput = div.querySelector(".selectedProject");
+                const rateInput = div.querySelector(".participationRate");
+                const leadFlag = div.querySelector(".leadTaskFlag");
+
+                projectInput.value = entry.projectName ?? "알 수 없는 사업";
+                projectInput.dataset.projectId = entry.projectId;
+                projectInput.dataset.projectName = entry.projectName;
+                rateInput.value = entry.participationRate;
+                leadFlag.checked = entry.leadTaskFlag === 1;
+            }
+
+            updateTotalParticipation();
         }
-    }
 
-    alert("사업 추가 버튼을 먼저 눌러주세요.");
-}
-
-function addProjectInput(entry = null) {
-    if (projectCount >= 5) {
-        alert("최대 5개의 사업만 추가할 수 있습니다!");
-        return;
-    }
-
-    projectCount++;
-    const projectInputs = document.getElementById("projectInputs");
-    const div = document.createElement("div");
-
-    div.innerHTML = `
-        <span>순번 ${projectCount}:</span>
-        <input type="text" class="selectedProject" readonly placeholder="오른쪽에서 사업 선택">
-        <input type="number" class="participationRate" placeholder="참여율 입력 (%)" oninput="updateTotalParticipation()">
-        <label><input type="checkbox" class="leadTaskFlag"> 과제 책임</label>
-        <button onclick="removeProjectInput(this)">삭제</button>
-    `;
-
-    projectInputs.appendChild(div);
-
-    // ✅ 데이터가 있다면 값 자동 채움
-    if (entry) {
-        const projectInput = div.querySelector(".selectedProject");
-        const rateInput = div.querySelector(".participationRate");
-        const leadFlag = div.querySelector(".leadTaskFlag");
-
-        projectInput.value = entry.projectName ?? "알 수 없는 사업";
-        projectInput.dataset.projectId = entry.projectId;
-        projectInput.dataset.projectName = entry.projectName;
-        rateInput.value = entry.participationRate;
-        leadFlag.checked = entry.leadTaskFlag === 1;
-    }
-
-    updateTotalParticipation();
-}
         function removeProjectInput(button) {
             button.parentElement.remove();
             projectCount--;
