@@ -37,11 +37,13 @@ def serve_index():
 # DB 연결 함수
 def get_db_connection():
     return pymysql.connect(
-        host="10.52.1.88",
-        user="root",
-        password="jun1206",
-        database="jun",
-        cursorclass=pymysql.cursors.DictCursor
+        host="gateway01.ap-northeast-1.prod.aws.tidbcloud.com",
+        port=4000,
+        user="4RGaKiyfHpPuAt3.root",
+        password="3zvcdCO5jcwN1beQ",
+        database="test",
+        cursorclass=pymysql.cursors.DictCursor,
+        ssl={"ssl": {}}  # ✅ TiDB는 SSL 연결 필수!
     )
 
 # ✅ 참여율 입력 모델
