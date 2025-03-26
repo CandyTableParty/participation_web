@@ -34,7 +34,8 @@ async function login() {
     const username = document.getElementById("username").value;
     const password = document.getElementById("password").value;
 
-    const response = await fetch("http://127.0.0.1:8000/login", { //🔴 URL 수정
+    const BASE_URL = window.location.origin;
+    const response = await fetch(`${BASE_URL}/login`, { //🔴 URL 수정
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password })
