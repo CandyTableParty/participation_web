@@ -234,7 +234,10 @@ if __name__ == "__main__":
 @app.get("/protected-api")
 def protected_api(user=Depends(JWTBearer())):
     return {"message": f"안녕하세요, {user['username']}님! 권한: {user['role']}"}
-
+class LoginInput(BaseModel):
+    username: str
+    password: str
+    
 @app.post("/login")
 def login(user: LoginInput):
     from backend.auth import verify_password, create_access_token
