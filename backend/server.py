@@ -12,7 +12,6 @@ from fastapi import FastAPI, Query, HTTPException, Depends  # ← ✅ 여기서 
 from fastapi import Request  # 추가 필요 시
 from fastapi.middleware.cors import CORSMiddleware
 
-
 # FastAPI 앱 생성
 app = FastAPI()
 
@@ -48,8 +47,37 @@ def get_db_connection():
         cursorclass=pymysql.cursors.DictCursor,
         ssl={"ca": ca_path}
     )
+class LoginInput(BaseModel):
+    username: str
+    password: str
+@app.post("/login")
+async def login(request: Request):
+    from backend.auth import verify_password, create_access_token
 
+    data = await request.json()
+    print("🔐 로그인 요청 JSON:", data)
 
+    username = data.get("username")
+    password = data.get("password")
+
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="username 또는 password가 누락되었습니다.")
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+        db_user = cursor.fetchone()
+
+        if not db_user or not verify_password(password, db_user["passwordHash"]):
+            raise HTTPException(status_code=401, detail="아이디 또는 비밀번호가 올바르지 않습니다.")
+
+        token = create_access_token({"username": db_user["username"], "role": db_user["role"]})
+        return {"access_token": token}
+    finally:
+        cursor.close()
+        conn.close()
+        
 # ✅ 참여율 입력 모델
 class ParticipationInput(BaseModel):
     staffId: str
@@ -234,25 +262,3 @@ if __name__ == "__main__":
 @app.get("/protected-api")
 def protected_api(user=Depends(JWTBearer())):
     return {"message": f"안녕하세요, {user['username']}님! 권한: {user['role']}"}
-class LoginInput(BaseModel):
-    username: str
-    password: str
-    
-@app.post("/login")
-def login(user: LoginInput):
-    from backend.auth import verify_password, create_access_token
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("SELECT * FROM users WHERE username = %s", (user.username,))
-        db_user = cursor.fetchone()
-
-        if not db_user or not verify_password(user.password, db_user["passwordHash"]):
-            raise HTTPException(status_code=401, detail="아이디 또는 비밀번호가 올바르지 않습니다.")
-
-        token = create_access_token({"username": db_user["username"], "role": db_user["role"]})
-        return {"access_token": token}
-    finally:
-        cursor.close()
-        conn.close()
