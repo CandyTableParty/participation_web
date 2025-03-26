@@ -106,6 +106,10 @@
     </div>
 
     <script>
+    const token = localStorage.getItem("token");
+    if (!token) {
+        window.location.href = "/static/login.html";
+    }
         const BASE_URL = window.location.origin;
         let projectCount = 0;
         let selectedStaffId = null;
@@ -383,7 +387,7 @@ async function fetchParticipationData() {
 }
 
 // 페이지 로드 시 데이터 호출 예시
-window.onload = fetchParticipationData;    
+//window.onload = fetchParticipationData;    
     </script>
 </body>
 </html>
