@@ -37,13 +37,13 @@ def serve_index():
 
 
 def get_db_connection():
-    ca_path = os.path.join(os.path.dirname(__file__), "isrgrootx1.pem")
+    ca_path = os.path.join(os.path.dirname(__file__), "isrgrootx1.pem")  # 또는 실제 경로
     return pymysql.connect(
         host="gateway01.ap-northeast-1.prod.aws.tidbcloud.com",
         port=4000,
-        user="(user)",
-        password="(password)",
-        database="(db)",
+        user="4RGaKiyfHpPuAt3.root",  # ✅ 접두사 포함된 사용자명!
+        password="3zvcdCO5jcwN1beQ",
+        database="test",
         cursorclass=pymysql.cursors.DictCursor,
         ssl={"ca": ca_path}
     )
