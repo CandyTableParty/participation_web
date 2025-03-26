@@ -38,16 +38,16 @@ def serve_index():
 
 
 def get_db_connection():
+    ca_path = os.path.join(os.path.dirname(__file__), "isrgrootx1.pem")
     return pymysql.connect(
         host="gateway01.ap-northeast-1.prod.aws.tidbcloud.com",
         port=4000,
-        user="4RGaKiyfHpPuAt3.root",
-        password="3zvcdCO5jcwN1beQ",
-        database="test",
+        user="(user)",
+        password="(password)",
+        database="(db)",
         cursorclass=pymysql.cursors.DictCursor,
-        ssl={"ca": "C:/Users/User/Desktop/participation_web/isrgrootx1.pem"}  # ← 이렇게 경로 작성
+        ssl={"ca": ca_path}
     )
-
 
 
 # ✅ 참여율 입력 모델
@@ -236,22 +236,20 @@ def protected_api(user=Depends(JWTBearer())):
     return {"message": f"안녕하세요, {user['username']}님! 권한: {user['role']}"}
 
 @app.post("/login")
-def login(user: dict):  # 또는 UserLogin(BaseModel) 클래스 사용해도 OK
+def login(user: LoginInput):
     from backend.auth import verify_password, create_access_token
 
-    conn = get_db_connection()  # ✅ 기존 함수 재사용
+    conn = get_db_connection()
     cursor = conn.cursor()
-
     try:
-        cursor.execute("SELECT * FROM users WHERE username = %s", (user["username"],))
+        cursor.execute("SELECT * FROM users WHERE username = %s", (user.username,))
         db_user = cursor.fetchone()
 
-        if not db_user or not verify_password(user["password"], db_user["passwordHash"]):
+        if not db_user or not verify_password(user.password, db_user["passwordHash"]):
             raise HTTPException(status_code=401, detail="아이디 또는 비밀번호가 올바르지 않습니다.")
 
         token = create_access_token({"username": db_user["username"], "role": db_user["role"]})
         return {"access_token": token}
-
     finally:
         cursor.close()
         conn.close()
