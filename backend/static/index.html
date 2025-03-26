@@ -357,6 +357,30 @@
             }
             document.getElementById("totalParticipation").textContent = `총 참여율: ${total}%`;
         }
+        async function fetchParticipationData() {
+    const token = localStorage.getItem("token"); // JWT 토큰 가져오기
+
+    const response = await fetch("/participation", {
+        method: "GET",
+        headers: {
+            "Authorization": `Bearer ${token}` // JWT를 헤더에 추가
+        }
+    });
+
+    if (response.ok) {
+        const data = await response.json();
+        console.log("참여율 데이터:", data);
+        // 여기서 데이터를 받아 UI에 뿌려주면 됩니다
+    } else if (response.status === 401) {
+        alert("로그인이 필요합니다");
+        window.location.href = "/static/login.html"; // 로그인 페이지로 이동
+    } else {
+        alert("데이터 로딩 중 오류 발생");
+    }
+}
+
+// 페이지 로드 시 데이터 호출 예시
+window.onload = fetchParticipationData;    
     </script>
 </body>
 </html>

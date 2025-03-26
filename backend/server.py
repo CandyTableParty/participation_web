@@ -6,7 +6,11 @@ from typing import List
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 import os
-
+from backend.auth import JWTBearer
+from fastapi import Depends
+from fastapi import FastAPI, Query, HTTPException, Depends  # ← ✅ 여기서 Depends 추가!
+from fastapi import Request  # 추가 필요 시
+from fastapi.middleware.cors import CORSMiddleware
 
 
 # FastAPI 앱 생성
@@ -15,12 +19,11 @@ app = FastAPI()
 # CORS 설정 (외부에서 접근 가능하도록 설정)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # 모든 도메인 허용 (테스트용)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 # ✅ "static" 폴더를 정적 파일 디렉토리로 설정
 # app.mount("/static", StaticFiles(directory="static"), name="static")
 static_path = os.path.join(os.path.dirname(__file__), "static")
@@ -34,7 +37,6 @@ def serve_index():
         return HTMLResponse(content=file.read())
 
 
-# DB 연결 함수
 def get_db_connection():
     return pymysql.connect(
         host="gateway01.ap-northeast-1.prod.aws.tidbcloud.com",
@@ -43,8 +45,10 @@ def get_db_connection():
         password="3zvcdCO5jcwN1beQ",
         database="test",
         cursorclass=pymysql.cursors.DictCursor,
-        ssl={"ssl": {}}  # ✅ TiDB는 SSL 연결 필수!
+        ssl={"ca": "C:/Users/User/Desktop/participation_web/isrgrootx1.pem"}  # ← 이렇게 경로 작성
     )
+
+
 
 # ✅ 참여율 입력 모델
 class ParticipationInput(BaseModel):
@@ -225,3 +229,29 @@ def get_projects(department: str = Query(None)):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)  # ✅ 변경된 실행 방식
+
+# ✅ 토큰 확인용 테스트 API
+@app.get("/protected-api")
+def protected_api(user=Depends(JWTBearer())):
+    return {"message": f"안녕하세요, {user['username']}님! 권한: {user['role']}"}
+
+@app.post("/login")
+def login(user: dict):  # 또는 UserLogin(BaseModel) 클래스 사용해도 OK
+    from backend.auth import verify_password, create_access_token
+
+    conn = get_db_connection()  # ✅ 기존 함수 재사용
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT * FROM users WHERE username = %s", (user["username"],))
+        db_user = cursor.fetchone()
+
+        if not db_user or not verify_password(user["password"], db_user["passwordHash"]):
+            raise HTTPException(status_code=401, detail="아이디 또는 비밀번호가 올바르지 않습니다.")
+
+        token = create_access_token({"username": db_user["username"], "role": db_user["role"]})
+        return {"access_token": token}
+
+    finally:
+        cursor.close()
+        conn.close()
