@@ -357,8 +357,13 @@
             }
             document.getElementById("totalParticipation").textContent = `총 참여율: ${total}%`;
         }
-        async function fetchParticipationData() {
+async function fetchParticipationData() {
     const token = localStorage.getItem("token"); // JWT 토큰 가져오기
+    
+    if (!token) {
+        alert("로그인이 필요합니다.");
+        window.location.href = "/static/login.html";
+    }
 
     const response = await fetch("/participation", {
         method: "GET",
