@@ -358,17 +358,15 @@
             document.getElementById("totalParticipation").textContent = `총 참여율: ${total}%`;
         }
 async function fetchParticipationData() {
-    const token = localStorage.getItem("token"); // JWT 토큰 가져오기
-    
-    if (!token) {
-        alert("로그인이 필요합니다.");
-        window.location.href = "/static/login.html";
-    }
+    const token = localStorage.getItem("token");
+    const staffId = selectedStaffId; // 🔥 이 줄 추가
 
-    const response = await fetch("/participation", {
+    if (!staffId) return;            // 🔐 이 줄도 꼭 추가
+
+    const response = await fetch(`/participation?staffId=${staffId}`, {
         method: "GET",
         headers: {
-            "Authorization": `Bearer ${token}` // JWT를 헤더에 추가
+            "Authorization": `Bearer ${token}`
         }
     });
 
