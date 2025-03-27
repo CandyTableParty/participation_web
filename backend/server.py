@@ -54,17 +54,21 @@ class LoginInput(BaseModel):
 @app.post("/login")
 async def login(request: Request):
     from backend.auth import verify_password, create_access_token
+    import traceback  # 예외 추적용
 
-    data = await request.json()
-    username = data.get("username")
-    password = data.get("password")
-
-    if not username or not password:
-        raise HTTPException(status_code=400, detail="username 또는 password가 누락되었습니다.")
-
-    conn = get_db_connection()
-    cursor = conn.cursor(pymysql.cursors.DictCursor)  # ✅ dict 형태로 받기
     try:
+        data = await request.json()
+        print("🔐 로그인 요청 JSON:", data)
+
+        username = data.get("username")
+        password = data.get("password")
+
+        if not username or not password:
+            raise HTTPException(status_code=400, detail="username 또는 password가 누락되었습니다.")
+
+        conn = get_db_connection()
+        cursor = conn.cursor(pymysql.cursors.DictCursor)  # dict 형태로 결과 받기
+
         cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
         db_user = cursor.fetchone()
 
@@ -76,9 +80,17 @@ async def login(request: Request):
 
         token = create_access_token({"username": db_user["username"], "role": db_user["role"]})
         return {"access_token": token}
+
+    except Exception as e:
+        traceback.print_exc()  # 콘솔 로그에 전체 예외 스택 출력
+        raise HTTPException(status_code=500, detail=f"서버 오류: {str(e)}")
+
     finally:
-        cursor.close()
-        conn.close()
+        try:
+            cursor.close()
+            conn.close()
+        except:
+            pass
 
 # ✅ 참여율 입력 모델
 class ParticipationInput(BaseModel):
