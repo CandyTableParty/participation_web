@@ -306,6 +306,7 @@ document.getElementById("downloadExcelBtn").addEventListener("click", async () =
                                 <span style="color: ${leadColor}; font-weight: bold;">책임: ${leadCount}개</span>
                             </span>`;
                         li.style.backgroundColor = background;
+                        console.log("🧪 배경 적용:", staff.userName, background);
 
                         li.dataset.staffId = staff.staffId;
                         li.onclick = function () {
