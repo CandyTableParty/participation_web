@@ -37,13 +37,13 @@ def serve_index():
 
 
 def get_db_connection():
-    ca_path = os.path.join(os.path.dirname(__file__), "isrgrootx1.pem")  # 또는 실제 경로
+    ca_path = os.path.join(os.path.dirname(__file__), "isrgrootx1.pem")
     return pymysql.connect(
         host="gateway01.ap-northeast-1.prod.aws.tidbcloud.com",
         port=4000,
-        user="4RGaKiyfHpPuAt3.root",  # ✅ 접두사 포함된 사용자명!
-        password="3zvcdCO5jcwN1beQ",
-        database="test",
+        user="(user)",
+        password="(password)",
+        database="(db)",
         cursorclass=pymysql.cursors.DictCursor,
         ssl={"ca": ca_path}
     )
@@ -211,12 +211,13 @@ def get_staff(department: str = Query(None)):
     cursor = conn.cursor()
     try:
         cursor.execute("""
-            SELECT s.staffId, s.userName,
-                IFNULL(SUM(p.participationRate), 0) AS totalParticipation
+            SELECT s.staffId, s.staffClass, s.userName, s.staffDepartment,
+                IFNULL(SUM(p.participationRate), 0) AS totalParticipation,
+                SUM(CASE WHEN p.leadTaskFlag = 1 THEN 1 ELSE 0 END) AS leadTaskCount
             FROM staff s
             LEFT JOIN participation p ON s.staffId = p.staffId
             WHERE s.staffDepartment = %s
-            GROUP BY s.staffId, s.userName
+            GROUP BY s.staffId, s.staffClass, s.userName, s.staffDepartment
         """, (department,))
         return cursor.fetchall()
     except Exception as e:
