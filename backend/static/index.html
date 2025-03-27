@@ -85,6 +85,7 @@
                     <div id="projectInputs"></div>
                     <button onclick="addProjectInput()">사업 추가</button>
                     <button onclick="saveAllParticipation()">저장</button>
+<button id="downloadCSVBtn">📥 CSV 다운로드</button>
                 </div>
             </div>
         </div>
@@ -390,6 +391,30 @@ window.addEventListener("beforeunload", () => {
 });
 // 페이지 로드 시 데이터 호출 예시
 //window.onload = fetchParticipationData;    
-    </script>
+    
+document.getElementById("downloadCSVBtn").addEventListener("click", () => {
+    const department = document.getElementById("departmentSelect").value;
+    const staffName = document.querySelector("#staffList li.selected span")?.textContent?.split(" ")?.[0] || "직원명";
+
+    const rows = document.querySelectorAll("#projectInputs > div");
+    let csv = "부서명,이름,사업명,참여율,과제 책임\n";
+
+    rows.forEach(row => {
+        const project = row.querySelector(".selectedProject")?.value || "";
+        const rate = row.querySelector(".participationRate")?.value || "";
+        const lead = row.querySelector(".leadTaskFlag")?.checked ? "Y" : "";
+        csv += `${department},${staffName},${project},${rate},${lead}\n`;
+    });
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.setAttribute("href", URL.createObjectURL(blob));
+    link.setAttribute("download", "참여율_다운로드.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+});
+
+</script>
 </body>
 </html>
