@@ -290,7 +290,7 @@ document.getElementById("downloadExcelBtn").addEventListener("click", async () =
                 let background = "";
                 //const position = staff.position?.trim();
                 const position = (staff.position || "").trim();
-                console.log("✔️ 직급 확인:", staffClass, "-", position);
+                console.log("✔️ 직급 확인:", staff.staffClass, "-", position);
                 if (position === "단장") background = "rgba(173, 255, 47, 0.2)";
                 if (position === "본부장") background = "rgba(173, 255, 47, 0.2)";
                 else if (position === "센터장") background = "rgba(255, 255, 102, 0.2)";
