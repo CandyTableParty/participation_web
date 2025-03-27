@@ -304,6 +304,7 @@ document.getElementById("downloadExcelBtn").addEventListener("click", async () =
                                         <span style="color: ${color}; font-weight: bold;">총 ${total}%</span> /
                                         <span style="color: ${leadColor}; font-weight: bold;">책임: ${leadCount}개</span>
                                     </span>`;
+                                    li.style.backgroundColor = background;
                             });
                         li.dataset.staffId = staff.staffId;
                         li.onclick = function () {
@@ -312,7 +313,7 @@ document.getElementById("downloadExcelBtn").addEventListener("click", async () =
                             this.classList.add("selected");
                             loadExistingParticipation(staff.staffId);
                         };
-                        li.style.backgroundColor = background;
+                        
                         staffList.appendChild(li);
                     });
                 })
