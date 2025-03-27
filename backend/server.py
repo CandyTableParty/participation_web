@@ -211,12 +211,13 @@ def get_staff(department: str = Query(None)):
     cursor = conn.cursor()
     try:
         cursor.execute("""
-            SELECT s.staffId, s.userName,
-                IFNULL(SUM(p.participationRate), 0) AS totalParticipation
+            SELECT s.staffId, s.userName, s.position,
+                IFNULL(SUM(p.participationRate), 0) AS totalParticipation,
+                SUM(CASE WHEN p.leadTaskFlag = 1 THEN 1 ELSE 0 END) AS leadTaskCount
             FROM staff s
             LEFT JOIN participation p ON s.staffId = p.staffId
             WHERE s.staffDepartment = %s
-            GROUP BY s.staffId, s.userName
+            GROUP BY s.staffId, s.userName, s.position
         """, (department,))
         return cursor.fetchall()
     except Exception as e:
