@@ -50,13 +50,12 @@ def get_db_connection():
 class LoginInput(BaseModel):
     username: str
     password: str
+
 @app.post("/login")
 async def login(request: Request):
     from backend.auth import verify_password, create_access_token
 
     data = await request.json()
-    print("🔐 로그인 요청 JSON:", data)
-
     username = data.get("username")
     password = data.get("password")
 
@@ -64,20 +63,23 @@ async def login(request: Request):
         raise HTTPException(status_code=400, detail="username 또는 password가 누락되었습니다.")
 
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(pymysql.cursors.DictCursor)  # ✅ dict 형태로 받기
     try:
         cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
         db_user = cursor.fetchone()
 
-        if not db_user or not verify_password(password, db_user["passwordHash"]):
-            raise HTTPException(status_code=401, detail="아이디 또는 비밀번호가 올바르지 않습니다.")
+        if not db_user:
+            raise HTTPException(status_code=401, detail="해당 아이디가 존재하지 않습니다.")
+
+        if not verify_password(password, db_user["passwordHash"]):
+            raise HTTPException(status_code=401, detail="비밀번호가 올바르지 않습니다.")
 
         token = create_access_token({"username": db_user["username"], "role": db_user["role"]})
         return {"access_token": token}
     finally:
         cursor.close()
         conn.close()
-        
+
 # ✅ 참여율 입력 모델
 class ParticipationInput(BaseModel):
     staffId: str
