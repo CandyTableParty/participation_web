@@ -23,7 +23,7 @@
 </head>
 <body>
 <div class="login-container">
-    <h2>관리자 로그인</h2>
+    <h2>참여율 관리 시스템</h2>
     <input type="text" id="username" placeholder="아이디">
     <input type="password" id="password" placeholder="비밀번호">
     <button type="button" onclick="login()">로그인</button>
@@ -62,6 +62,11 @@ async function login() {
         alert("서버에 연결할 수 없습니다. 네트워크 상태를 확인하세요.");
     }
 }
+document.addEventListener("keydown", function (event) {
+    if (event.key === "Enter") {
+        login();
+    }
+});
 </script>
 </body>
 </html>
