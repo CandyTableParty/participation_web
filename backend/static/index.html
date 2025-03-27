@@ -56,9 +56,53 @@
             background-color: #f1f1f1;
         }
     </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js">
+document.getElementById("downloadExcelBtn").addEventListener("click", async () => {
+    const department = document.getElementById("departmentSelect").value;
+    if (!department) {
+        alert("부서를 먼저 선택하세요!");
+        return;
+    }
+
+    const staffListRes = await fetch(`${BASE_URL}/staff?department=${department}`);
+    const staffList = await staffListRes.json();
+    const token = localStorage.getItem("token");
+
+    let allData = [];
+
+    for (const staff of staffList) {
+        const res = await fetch(`/participation?staffId=${staff.staffId}`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        const participation = await res.json();
+        participation.forEach(entry => {
+            allData.push({
+                부서명: department,
+                이름: staff.userName,
+                사업명: entry.projectName ?? "알 수 없는 사업",
+                참여율: entry.participationRate,
+                과제책임: entry.leadTaskFlag ? "Y" : ""
+            });
+        });
+    }
+
+    if (allData.length === 0) {
+        alert("저장할 데이터가 없습니다.");
+        return;
+    }
+
+    const ws = XLSX.utils.json_to_sheet(allData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "참여율");
+
+    XLSX.writeFile(wb, "참여율_다운로드.xlsx");
+});
+
+</script>
 </head>
 <body>
-    <h1>참여율 관리 시스템</h1>
+    <h1 style="display: inline-block;">참여율 관리 시스템</h1>
+<button id="downloadExcelBtn" style="float: right; margin-top: 10px;">📥 엑셀 다운로드</button>
 
     <div class="container">
         <!-- 왼쪽: 인원 관리 -->
@@ -85,7 +129,6 @@
                     <div id="projectInputs"></div>
                     <button onclick="addProjectInput()">사업 추가</button>
                     <button onclick="saveAllParticipation()">저장</button>
-<button id="downloadCSVBtn">📥 CSV 다운로드</button>
                 </div>
             </div>
         </div>
@@ -392,28 +435,45 @@ window.addEventListener("beforeunload", () => {
 // 페이지 로드 시 데이터 호출 예시
 //window.onload = fetchParticipationData;    
     
-document.getElementById("downloadCSVBtn").addEventListener("click", () => {
+document.getElementById("downloadExcelBtn").addEventListener("click", async () => {
     const department = document.getElementById("departmentSelect").value;
-    const staffName = document.querySelector("#staffList li.selected span")?.textContent?.split(" ")?.[0] || "직원명";
+    if (!department) {
+        alert("부서를 먼저 선택하세요!");
+        return;
+    }
 
-    const rows = document.querySelectorAll("#projectInputs > div");
-    let csv = "부서명,이름,사업명,참여율,과제 책임\n";
+    const staffListRes = await fetch(`${BASE_URL}/staff?department=${department}`);
+    const staffList = await staffListRes.json();
+    const token = localStorage.getItem("token");
 
-    rows.forEach(row => {
-        const project = row.querySelector(".selectedProject")?.value || "";
-        const rate = row.querySelector(".participationRate")?.value || "";
-        const lead = row.querySelector(".leadTaskFlag")?.checked ? "Y" : "";
-        csv += `${department},${staffName},${project},${rate},${lead}\n`;
-    });
+    let allData = [];
 
-    const BOM = "\uFEFF";
-    const blob = new Blob([BOM + csv], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.setAttribute("href", URL.createObjectURL(blob));
-    link.setAttribute("download", "참여율_다운로드.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    for (const staff of staffList) {
+        const res = await fetch(`/participation?staffId=${staff.staffId}`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        const participation = await res.json();
+        participation.forEach(entry => {
+            allData.push({
+                부서명: department,
+                이름: staff.userName,
+                사업명: entry.projectName ?? "알 수 없는 사업",
+                참여율: entry.participationRate,
+                과제책임: entry.leadTaskFlag ? "Y" : ""
+            });
+        });
+    }
+
+    if (allData.length === 0) {
+        alert("저장할 데이터가 없습니다.");
+        return;
+    }
+
+    const ws = XLSX.utils.json_to_sheet(allData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "참여율");
+
+    XLSX.writeFile(wb, "참여율_다운로드.xlsx");
 });
 
 </script>
