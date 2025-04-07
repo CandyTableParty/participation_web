@@ -35,7 +35,7 @@ def serve_index():
     with open(path, "r", encoding="utf-8") as file:
         return HTMLResponse(content=file.read())
 
-
+# 데이터 베이스 하드코딩 
 def get_db_connection():
     ca_path = os.path.join(os.path.dirname(__file__), "isrgrootx1.pem")  # CA 인증서 위치
     return pymysql.connect(
@@ -206,6 +206,30 @@ def get_project_departments():
         cursor.close()
         conn.close()
 
+# ✅ 부서 목록 조회 (사업 관리)
+@app.get("/departments")
+def get_upper_departments():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT DISTINCT staffDepartment FROM staff")
+        departments = cursor.fetchall()
+        
+        upper_departments = set()
+        for dept in departments:
+            staff_dept = dept.get("staffDepartment", "")
+            if staff_dept:
+                parts = staff_dept.split("-")
+                upper_departments.add(parts[0])  # '-' 앞부분 (상위부서) 추가
+
+        # 리스트로 변환하고 오름차순 정렬해서 반환
+        return sorted(upper_departments)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"오류 발생: {str(e)}")
+    finally:
+        cursor.close()
+        conn.close()
+        
 # ✅ 직원 목록
 @app.get("/staff")
 @app.get("/staff")
